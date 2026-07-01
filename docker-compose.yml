@@ -1,0 +1,59 @@
+services:
+    traefik:
+        image: traefik:3.6.17
+        command:
+            - --providers.docker=true
+            - --providers.docker.exposedByDefault=false
+            - --entryPoints.http.address=:80
+            - --entryPoints.https.address=:443
+            - --entryPoints.http.http.redirections.entryPoint.to=https
+            - --entryPoints.http.http.redirections.entryPoint.scheme=https
+
+            - --api.dashboard=true
+            - --api.insecure=true
+
+            - --accesslog=true
+            - --accesslog.format=json
+        ports:
+            - "80:80"
+            - "443:443"
+        networks:
+            - network
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+            - ./docker/development/traefik/certs:/etc/certs:ro
+
+    backend:
+        build:
+            context: backend/docker
+            dockerfile: development/frankenphp/Dockerfile
+            args:
+                GID: ${GID:-1000}
+                UID: ${UID:-1000}
+        volumes:
+            - ./backend:/app
+        networks:
+            - network
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.backend.rule=Host(`localhost`)
+            - traefik.http.routers.backend.priority=100
+            - traefik.http.routers.backend.entrypoints=https
+            - traefik.http.routers.backend.tls=true
+            - traefik.http.services.backend.loadbalancer.server.port=8080
+
+    backend-php-cli:
+        build:
+            context: backend/docker
+            dockerfile: development/php-cli/Dockerfile
+            args:
+                GID: ${GID:-1000}
+                UID: ${UID:-1000}
+        networks:
+            - network
+        volumes:
+            - ./backend:/app
+
+networks:
+    network:
+        driver: bridge

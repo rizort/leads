@@ -1,0 +1,29 @@
+{
+    auto_https off
+    admin off
+    frankenphp
+}
+
+:8080 {
+    root * /app/public
+    encode zstd gzip
+
+    header {
+        Access-Control-Allow-Origin *
+        Access-Control-Allow-Credentials true
+        Access-Control-Allow-Methods "GET,POST,PUT,DELETE,HEAD,OPTIONS"
+        Access-Control-Allow-Headers "Origin,Content-Type,Accept,Authorization,X-Features"
+    }
+
+    route {
+        @health path /health
+        respond @health "alive" 200
+
+        @preflight method OPTIONS
+        respond @preflight 204
+
+        php_server {
+            try_files {path} index.php
+        }
+    }
+}
